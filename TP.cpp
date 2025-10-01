@@ -1,9 +1,12 @@
 #include <iostream>
-#include <fstream>
+#include <cstdio>
 #include <cstring>
+#include <climits>
 using namespace std;
 
+// =======================
 // ESTRUCTURAS
+// =======================
 struct RegCorredores {
     int numero;
     char nombreApellido[50];
@@ -13,7 +16,17 @@ struct RegCorredores {
     char llegada[11];
 };
 
-// Convierte "HH:MM:SS.D" en décimas de segundo (entero)
+struct Resultado {
+    RegCorredores corredor;
+    int posGeneral;
+    int posGenero;
+    int posCategoria;
+};
+
+// =======================
+// FUNCIONES AUXILIARES
+// =======================
+
 int convertirTiempoADecimas(const char llegada[11]) {
     if (strcmp(llegada, "No Termino") == 0) return INT32_MAX;
 
@@ -25,77 +38,98 @@ int convertirTiempoADecimas(const char llegada[11]) {
     return (((hh * 60 + mm) * 60) + ss) * 10 + d;
 }
 
-//Cargar corredores guardados en el archivo
-void cargarCorredores(const char *filename, vector<RegCorredores> &corredores) {
+int cargarCorredores(const char *filename, RegCorredores corredores[], int maxCorredores) {
     FILE *f = fopen(filename, "rb");
     if (!f) {
-        cerr << "Error al abrir archivo: " << filename << endl;
-        return;
-    }
-    RegCorredores reg;
-    while (fread(&reg, sizeof(RegCorredores), 1, f) == 1) {
-        corredores.push_back(reg);
+        cout << "Error al abrir archivo." << endl;
+        return 0;
     }
 
-    fclose(f);
-}
-
-//Guardar los corredores en el archivo
-void guardarCorredores(const char *filename, const vector<RegCorredores> &corredores) {
-    FILE *f = fopen(filename, "wb");
-    if (!f) {
-        cerr << "Error al abrir archivo para escritura: " << filename << endl;
-        return;
-    }
-
-    for (const auto &c : corredores) {
-        fwrite(&c, sizeof(RegCorredores), 1, f);
+    int cant = 0;
+    while (cant < maxCorredores && fread(&corredores[cant], sizeof(RegCorredores), 1, f) == 1) {
+        cant++;
     }
 
     fclose(f);
+    return cant;
 }
 
-void mostrarCorredores(const vector<RegCorredores> &corredores) {
-    int pos = 1;
-    for (auto &c : corredores) {
-        cout << pos++ << " - " << c.numero << " - "
-             << c.nombreApellido << " - "
-             << c.categoria << " - "
-             << c.genero << " - "
-             << c.localidad << " - "
-             << c.llegada << endl;
-    }
-}
-
-// Ordenamiento Burbuja (ESTO NOSE ME LO DIO CHAT GPT))
-void ordenarPorTiempo(vector<RegCorredores> &corredores) {
-    int n = corredores.size();
+void ordenarPorTiempo(RegCorredores corredores[], int n) {
     for (int i = 0; i < n - 1; i++) {
         for (int j = 0; j < n - i - 1; j++) {
             int t1 = convertirTiempoADecimas(corredores[j].llegada);
             int t2 = convertirTiempoADecimas(corredores[j+1].llegada);
             if (t1 > t2) {
-                swap(corredores[j], corredores[j+1]);
+                RegCorredores aux = corredores[j];
+                corredores[j] = corredores[j+1];
+                corredores[j+1] = aux;
             }
         }
     }
 }
 
+void procesarResultados(RegCorredores corredores[], Resultado resultados[], int n) {
+    int posGenero[256] = {0};
+    char categorias[100][50];
+    int posCat[100] = {0};
+    int cantCat = 0;
+
+    for (int i = 0; i < n; i++) {
+        resultados[i].corredor = corredores[i];
+        resultados[i].posGeneral = i + 1;
+
+        unsigned char g = (unsigned char) corredores[i].genero;
+        posGenero[g]++;
+        resultados[i].posGenero = posGenero[g];
+
+        int idx = -1;
+        for (int c = 0; c < cantCat; c++) {
+            if (strcmp(categorias[c], corredores[i].categoria) == 0) {
+                idx = c;
+                break;
+            }
+        }
+        if (idx == -1) {
+            strcpy(categorias[cantCat], corredores[i].categoria);
+            idx = cantCat;
+            cantCat++;
+        }
+        posCat[idx]++;
+        resultados[i].posCategoria = posCat[idx];
+    }
+}
+
+void mostrarResultados(Resultado resultados[], int n) {
+    cout << "PosG\tPosGen\tPosCat\tNumero\tNombre\tCategoria\tGenero\tLocalidad\tLlegada\n";
+    for (int i = 0; i < n; i++) {
+        cout << resultados[i].posGeneral << "\t"
+             << resultados[i].posGenero << "\t"
+             << resultados[i].posCategoria << "\t"
+             << resultados[i].corredor.numero << "\t"
+             << resultados[i].corredor.nombreApellido << "\t"
+             << resultados[i].corredor.categoria << "\t"
+             << resultados[i].corredor.genero << "\t"
+             << resultados[i].corredor.localidad << "\t"
+             << resultados[i].corredor.llegada << endl;
+    }
+}
+
+// =======================
+// MAIN
+// =======================
 int main() {
-    vector<RegCorredores> corredores;
-    // 1) Cargar datos
-    cargarCorredores("Archivo corredores 4Refugios.bin", corredores);
+    const int MAX = 1000;
+    RegCorredores corredores[MAX];
+    Resultado resultados[MAX];
 
-    // 2) Ordenar por tiempo de llegada
-    ordenarPorTiempo(corredores);
+    int n = cargarCorredores("Archivo corredores 4Refugios.bin", corredores, MAX);
+    if (n == 0) return 1;
 
-    // 3) Mostrar orden general
-    cout << "Listado General (ordenado por tiempo):" << endl;
-    mostrarCorredores(corredores);
-    
-    // 4) Guardar en archivo nuevo
-    guardarCorredores("CorredoresOrdenados.bin", corredores);
+    ordenarPorTiempo(corredores, n);
+    procesarResultados(corredores, resultados, n);
+    mostrarResultados(resultados, n);
 
-    cout << "Procesamiento terminado." << endl;
     return 0;
 }
+
+
