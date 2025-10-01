@@ -9,11 +9,11 @@ using namespace std;
 // =======================
 struct RegCorredores {
     int numero;
-    char nombreApellido[50];
-    char categoria[50];
+    char nombreApellido[100] = {};
+    char categoria[100] = {};
     char genero;
-    char localidad[40];
-    char llegada[11];
+    char localidad[40] = {};
+    char llegada[11] = {};
 };
 
 struct Resultado {
@@ -21,6 +21,8 @@ struct Resultado {
     int posGeneral;
     int posGenero;
     int posCategoria;
+    int diferenciaprimero;
+    int diferenciaanterior;
 };
 
 // =======================
@@ -99,8 +101,21 @@ void procesarResultados(RegCorredores corredores[], Resultado resultados[], int 
     }
 }
 
+void Calculardiferenciasdetiempo (Resultado resultados[], int n)
+{
+	int tiempoprimero = convertirTiempoADecimas(resultados[0].corredor.llegada);
+	for (int i = 0; i < n; i++) 
+	{
+		int tiempoactual = convertirTiempoADecimas(resultados[i].corredor.llegada);
+        resultados[i].diferenciaprimero = resultados[0].corredor.llegada - resultados[i].corredor.llegada;
+		resultados[i].diferenciaanterior = tiempoactual - convertirTiempoADecimas(resultados[i-1].corredor.llegada);
+	}
+}
+
+
+
 void mostrarResultados(Resultado resultados[], int n) {
-    cout << "PosG\tPosGen\tPosCat\tNumero\tNombre\tCategoria\tGenero\tLocalidad\tLlegada\n";
+    cout << "PosG\tPosGen\tPosCat\tNumero\tNombre\tCategoria\tGenero\tLocalidad\tLlegada\tDiferenciaprimero\tDiferenciaanterior" << endl;
     for (int i = 0; i < n; i++) {
         cout << resultados[i].posGeneral << "\t"
              << resultados[i].posGenero << "\t"
@@ -110,7 +125,9 @@ void mostrarResultados(Resultado resultados[], int n) {
              << resultados[i].corredor.categoria << "\t"
              << resultados[i].corredor.genero << "\t"
              << resultados[i].corredor.localidad << "\t"
-             << resultados[i].corredor.llegada << endl;
+             << resultados[i].corredor.llegada << "\t"
+             << resultados[i].diferenciaprimero << "\t"
+             << resultados[i].diferenciaanterior << endl;
     }
 }
 
@@ -127,6 +144,7 @@ int main() {
 
     ordenarPorTiempo(corredores, n);
     procesarResultados(corredores, resultados, n);
+    Calculardiferenciasdetiempo(resultados, n);
     mostrarResultados(resultados, n);
 
     return 0;
