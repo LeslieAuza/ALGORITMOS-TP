@@ -135,40 +135,46 @@ int cargarCiudades(const char *filename, CorredoresCiudad ciudades[], int maxCor
     return cant;
 }
 
-int generarReporteCiudades(Resultado resultados[], int n, CorredoresCiudad ciudades[], int m, EstadisticaCiudades estadisticas[]) {
-    int cantEst = 0;
+int generarReporteLocalidades(const char *archivoCorredores, const char *archivoCiudades, EstadisticaCiudades reportes[], int max) {
+    const int MAX = 1000;
+    RegCorredores corredores[MAX];
+    CorredoresCiudad ciudades[MAX];
+    int cantReportes = 0;
 
-    // acumuladores ciudad/localidad/datos
-    for(int i = 0; i < n; i++){
-        int numeroCorredor = resultados[i].corredor.numero;
+    int n = cargarCorredores(archivoCorredores, corredores, MAX);
+    int m = cargarCiudades(archivoCiudades, ciudades, MAX);
 
-        for(int j = 0; j < m; j++){
+    for (int i = 0; i < n; i++) {
+        int tiempo = convertirTiempoADecimas(corredores[i].llegada);
+        if (tiempo == INT32_MAX) continue; // no terminó
 
-            if(ciudades[j].numero == numeroCorredor) {
-                // chequeo si ya tengo la ciudad/localidad
-                for(int k = 0; k < cantEst; k++){
-                    if(strcmp(estadisticas[k].ciudad, ciudades[j].ciudad) == 0 && strcmp(estadisticas[k].localidad, ciudades[j].localidad == 0)) {
+        for (int j = 0; j < m; j++) {
+            if (corredores[i].numero == ciudades[j].numero) {
+                // buscar si ya existe la localidad+ciudad
+                int idx = -1;
+                for (int k = 0; k < cantReportes; k++) {
+                    if (strcmp(reportes[k].localidad, ciudades[j].localidad) == 0 &&
+                        strcmp(reportes[k].ciudad, ciudades[j].ciudad) == 0) {
+                        idx = k;
                         break;
                     }
                 }
 
-                // si no esta la agrego
-                if (k == cantEst) {
-                    strcpy(estadisticas[k].ciudad, ciudades[j].ciudad);
-                    strcpy(estadisticas[k].localidad, ciudades[j].localidad);
-                    estadisticas[k].cantidadCorredores = 0;
-                    estadisticas[k].sumaTiempos = 0;
-                    cantEst++;
+                if (idx == -1 && cantReportes < max) {
+                    idx = cantReportes++;
+                    strcpy(reportes[idx].localidad, ciudades[j].localidad);
+                    strcpy(reportes[idx].ciudad, ciudades[j].ciudad);
+                    reportes[idx].cantidadCorredores = 0;
+                    reportes[idx].sumaTiempos = 0;
                 }
 
-                // acumulo datos
-                estadisticas[k].cantidadCorredores++;
-                estadisticas[k].sumaTiempos += resultados[i].tiempo;
-                break;
+                reportes[idx].cantidadCorredores++;
+                reportes[idx].sumaTiempos += tiempo;
             }
         }
     }
-    return cantEst;
+
+    return cantReportes; // devuelve cantidad de localidades encontradas
 }
 
 void generarRanking(RegCorredores corredores[], int n, Resultado ranking[], int &m) {
@@ -265,8 +271,8 @@ void mostrarResultados(Resultado resultados[], int n) {
              << " | Genero: " << resultados[i].corredor.genero
              << " | Localidad: " << resultados[i].corredor.localidad
              << " | Llegada: " << resultados[i].corredor.llegada
-             << " | DifPrim: " << formatearTiempo(resultados[i].diffPrimero)
-             << " | DifAnt: " << formatearTiempo(resultados[i].diffAnterior)
+             << " | DifPrim: " << formatearTiempoAString(resultados[i].diffPrimero)
+             << " | DifAnt: " << formatearTiempoAString(resultados[i].diffAnterior)
              << endl;
     }
     cout << "=== Fin de resultados (" << n << " registros) ===\n";
@@ -292,8 +298,8 @@ void mostrarArchivoRanking(const char *filename) {
              << " | Genero: " << r.corredor.genero
              << " | Localidad: " << r.corredor.localidad
              << " | Llegada: " << r.corredor.llegada
-             << " | DifPrim: " << formatearTiempo(r.diffPrimero)
-             << " | DifAnt: " << formatearTiempo(r.diffAnterior)
+             << " | DifPrim: " << formatearTiempoAString(r.diffPrimero)
+             << " | DifAnt: " << formatearTiempoAString(r.diffAnterior)
              << endl;
         i++;
     }
@@ -340,7 +346,7 @@ void mostrarArchivoPodios(const char *filename) {
                 cout << "PosCat: " << resultados[j].posCategoria
                      << " | Num: " << resultados[j].corredor.numero
                      << " | Nombre: " << resultados[j].corredor.nombreApellido
-                     << " | Tiempo: " << formatearTiempo(resultados[j].tiempo)
+                     << " | Tiempo: " << formatearTiempoAString(resultados[j].tiempo)
                      << endl;
                 count++;
                 if (count == 3) break;
@@ -352,60 +358,19 @@ void mostrarArchivoPodios(const char *filename) {
 }
 
 void mostrarReporteCiudades(EstadisticaCiudades estadisticas[], int cantEst) {
-    cout << "\n=== Reporte por Ciudad y Localidad ===\n\n";
-    
-    cout << left
-         << setw(15) << "Ciudad"
-         << setw(15) << "Localidad"
-         << setw(20) << "Cantidad corredores"
-         << setw(15) << "Tiempo promedio" << endl;
-
-    cout << string(65, '-') << endl;
-
-
-    for(int i=0; i < cantEst; i++){
-        bool primeraVez = true;
-        for(int j = 0; j < i; j++){
-            if(strcmp(estadisticas[i].ciudad, estadisticas[j].ciudad) == 0)) {
-                primeraVez = false;
-                break;
-            }
-        }
-        if(!primeraVez) continue;
-
-        // Acumular totales de la ciudad
-        int totalCant = 0;
-        double totalSuma = 0;
-
-        for (int k = 0; k < cantEst; k++) {
-            if (strcmp(estadisticas[i].ciudad, estadisticas[k].ciudad) == 0) {
-                double prom = estadisticas[k].sumaTiempos / estadisticas[k].cantidadCorredores;
-
-                cout << left
-                     << setw(15) << estadisticas[k].ciudad
-                     << setw(15) << estadisticas[k].localidad
-                     << setw(20) << estadisticas[k].cantidadCorredores
-                     << setw(15) << formatearTiempo((int)prom)
-                     << endl;
-
-                totalCant += estadisticas[k].cantidadCorredores;
-                totalSuma += estadisticas[k].sumaTiempos;
-            }
-        }
-
-        // Mostrar línea de totales
-        double promTotal = totalSuma / totalCant;
-        cout << left
-             << setw(15) << ("Total " + string(estadisticas[i].ciudad))
-             << setw(15) << "-"
-             << setw(20) << totalCant
-             << setw(15) << formatearTiempo((int)promTotal)
+       // Mostrar reporte
+    cout << "\n=== REPORTE POR LOCALIDAD Y CIUDAD ===\n";
+    cout << "Localidad         | Ciudad     | Cantidad | Tiempo Promedio\n";
+    cout << "------------------------------------------------------------\n";
+    for (int i = 0; i < cantEst; i++) {
+        int prom = (estadisticas[i].cantidadCorredores > 0) ? estadisticas[i].sumaTiempos / estadisticas[i].cantidadCorredores : 0;
+        cout << left << setw(18) << estadisticas[i].localidad << " | "
+             << setw(10) << estadisticas[i].ciudad << " | "
+             << setw(8)  << estadisticas[i].cantidadCorredores << " | "
+             << formatearTiempoAString(prom)
              << endl;
-
-        cout << string(65, '-') << endl;
     }
 }
-
 int main() {
     const int MAX = 1000;
     RegCorredores corredores[MAX];
@@ -430,12 +395,14 @@ int main() {
     // Mostrar contenido de archivos
     mostrarArchivoRanking("Ranking.bin");
     mostrarArchivoPodios("Podios.bin");
-
-    c = cargarCiudades("Ciudades.bin", ciudades, MAX);
-    if(c > 0) {
-        cantEst = generarReporteCiudades(resultados, m, ciudades, c, estadisticas);
-        mostrarReporteCiudades(estadisticas, cantEst);
+    
+    m = cargarCiudades("Ciudades.bin", ciudades, MAX);
+    if (m == 0) {
+        cout << "No se cargaron ciudades." << endl;
+        return 1;
     }
+	int cant = generarReporteLocalidades("Archivo corredores 4Refugios.bin", "Ciudades.bin", estadisticas, 1000);
+	mostrarReporteCiudades(estadisticas, cant);
 	return 0;
     
 }
