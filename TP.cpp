@@ -107,29 +107,91 @@ void Calculardiferenciasdetiempo (Resultado resultados[], int n)
 	for (int i = 0; i < n; i++) 
 	{
 		int tiempoactual = convertirTiempoADecimas(resultados[i].corredor.llegada);
-        resultados[i].diferenciaprimero = resultados[0].corredor.llegada - resultados[i].corredor.llegada;
-		resultados[i].diferenciaanterior = tiempoactual - convertirTiempoADecimas(resultados[i-1].corredor.llegada);
+
+        //Dif con el primero 
+        resultados[i].diferenciaprimero = tiempoactual - tiempoprimero;
+
+        //Dif con el anterior
+        if (i == 0 ){
+            resultados[i].diferenciaanterior = 0;
+        } else {
+            int tiempoanterior = convertirTiempoADecimas(resultados[i-1].corredor.llegada);
+            resultados[i].diferenciaanterior = tiempoactual - tiempoanterior;
+        }
 	}
 }
 
+string formatearTiempo(int tiempo) {
+    int totalSegs = tiempo / 10; // paso a segundos enteros
+    int d = tiempo % 10; // resto (la decima)
+    int hh = totalSegs / 3600; // horas
+    int mm = (totalSegs % 3600) / 60; // minutos
+    int ss = totalSegs % 60; // segundos
 
+    char buffer[20];
+    sprintf(buffer, "%02d:%02d:%02d.%d", hh, mm, ss, d);
+
+    return string(buffer);
+} 
+
+#include <iostream>
+#include <iomanip>
+using namespace std;
 
 void mostrarResultados(Resultado resultados[], int n) {
-    cout << "PosG\tPosGen\tPosCat\tNumero\tNombre\tCategoria\tGenero\tLocalidad\tLlegada\tDiferenciaprimero\tDiferenciaanterior" << endl;
+    // Anchos de columna
+    const int wPosG = 6, wPosGen = 7, wPosCat = 8, wNumero = 8;
+    const int wNombre = 20, wCategoria = 12, wGenero = 8;
+    const int wLocalidad = 15, wLlegada = 10, wDifer = 15;
+
+    // Cabecera
+    cout << left
+         << setw(wPosG) << "PosG" << "|"
+         << setw(wPosGen) << "PosGen" << "|"
+         << setw(wPosCat) << "PosCat" << "|"
+         << setw(wNumero) << "Numero" << "|"
+         << setw(wNombre) << "Nombre" << "|"
+         << setw(wCategoria) << "Categoria" << "|"
+         << setw(wGenero) << "Genero" << "|"
+         << setw(wLocalidad) << "Localidad" << "|"
+         << setw(wLlegada) << "Llegada" << "|"
+         << setw(wDifer) << "DiferPrimero" << "|"
+         << setw(wDifer) << "DiferAnterior"
+         << endl;
+
+    // Línea separadora
+    cout << setfill('-') 
+         << setw(wPosG) << "" << "+"
+         << setw(wPosGen) << "" << "+"
+         << setw(wPosCat) << "" << "+"
+         << setw(wNumero) << "" << "+"
+         << setw(wNombre) << "" << "+"
+         << setw(wCategoria) << "" << "+"
+         << setw(wGenero) << "" << "+"
+         << setw(wLocalidad) << "" << "+"
+         << setw(wLlegada) << "" << "+"
+         << setw(wDifer) << "" << "+"
+         << setw(wDifer) << "" 
+         << setfill(' ') << endl;
+
+    // Datos
     for (int i = 0; i < n; i++) {
-        cout << resultados[i].posGeneral << "\t"
-             << resultados[i].posGenero << "\t"
-             << resultados[i].posCategoria << "\t"
-             << resultados[i].corredor.numero << "\t"
-             << resultados[i].corredor.nombreApellido << "\t"
-             << resultados[i].corredor.categoria << "\t"
-             << resultados[i].corredor.genero << "\t"
-             << resultados[i].corredor.localidad << "\t"
-             << resultados[i].corredor.llegada << "\t"
-             << resultados[i].diferenciaprimero << "\t"
-             << resultados[i].diferenciaanterior << endl;
+        cout << left
+             << setw(wPosG) << resultados[i].posGeneral << "|"
+             << setw(wPosGen) << resultados[i].posGenero << "|"
+             << setw(wPosCat) << resultados[i].posCategoria << "|"
+             << setw(wNumero) << resultados[i].corredor.numero << "|"
+             << setw(wNombre) << resultados[i].corredor.nombreApellido << "|"
+             << setw(wCategoria) << resultados[i].corredor.categoria << "|"
+             << setw(wGenero) << resultados[i].corredor.genero << "|"
+             << setw(wLocalidad) << resultados[i].corredor.localidad << "|"
+             << setw(wLlegada) << resultados[i].corredor.llegada << "|"
+             << setw(wDifer) << formatearTiempo(resultados[i].diferenciaprimero) << "|"
+             << setw(wDifer) << formatearTiempo(resultados[i].diferenciaanterior)
+             << endl;
     }
 }
+
 
 // =======================
 // MAIN
