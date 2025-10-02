@@ -26,6 +26,21 @@ struct Resultado {
     double diffPrimero;
     double diffAnterior;
 };
+
+struct CorredoresCiudad {
+    int numero;
+    char nombreApellido[50];
+    char localidad[40];
+    char ciudad[11];
+};
+
+struct EstadisticaCiudades {
+    char ciudad[11];
+    char localidad[40];
+    int cantidadCorredores;
+    double sumaTiempos;
+};
+
 // =======================
 // FUNCIONES AUXILIARES
 // =======================
@@ -39,6 +54,53 @@ int convertirTiempoADecimas(const char llegada[11]) {
     int d  = (llegada[9] - '0');
 
     return (((hh * 60 + mm) * 60) + ss) * 10 + d;
+}
+
+string formatearTiempoAString(int tiempo) {
+    int totalSegs = tiempo / 10; // paso a segundos enteros
+    int d = tiempo % 10; // resto (la decima)
+    int hh = totalSegs / 3600; // horas
+    int mm = (totalSegs % 3600) / 60; // minutos
+    int ss = totalSegs % 60; // segundos
+
+    char buffer[20];
+    sprintf(buffer, "%02d:%02d:%02d.%d", hh, mm, ss, d); // formateo el string
+
+    return string(buffer);
+}
+
+void ordenarPorTiempo(RegCorredores corredores[], int n) {
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            int t1 = convertirTiempoADecimas(corredores[j].llegada);
+            int t2 = convertirTiempoADecimas(corredores[j+1].llegada);
+            if (t1 > t2) {
+                RegCorredores aux = corredores[j];
+                corredores[j] = corredores[j+1];
+                corredores[j+1] = aux;
+            }
+        }
+    }
+}
+
+void Calculardiferenciasdetiempo (Resultado resultados[], int n)
+{
+	int tiempoprimero = convertirTiempoADecimas(resultados[0].corredor.llegada);
+	for (int i = 0; i < n; i++) 
+	{
+		int tiempoactual = convertirTiempoADecimas(resultados[i].corredor.llegada);
+
+        //Dif con el primero 
+        resultados[i].diffPrimero = tiempoactual - tiempoprimero;
+
+        //Dif con el anterior
+        if (i == 0 ){
+            resultados[i].diffAnterior = 0;
+        } else {
+            int tiempoanterior = convertirTiempoADecimas(resultados[i-1].corredor.llegada);
+            resultados[i].diffAnterior = tiempoactual - tiempoanterior;
+        }
+	}
 }
 
 int cargarCorredores(const char *filename, RegCorredores corredores[], int maxCorredores) {
@@ -57,20 +119,57 @@ int cargarCorredores(const char *filename, RegCorredores corredores[], int maxCo
     return cant;
 }
 
-void ordenarPorTiempo(RegCorredores corredores[], int n) {
-    for (int i = 0; i < n - 1; i++) {
-        for (int j = 0; j < n - i - 1; j++) {
-            int t1 = convertirTiempoADecimas(corredores[j].llegada);
-            int t2 = convertirTiempoADecimas(corredores[j+1].llegada);
-            if (t1 > t2) {
-                RegCorredores aux = corredores[j];
-                corredores[j] = corredores[j+1];
-                corredores[j+1] = aux;
+int cargarCiudades(const char *filename, CorredoresCiudad ciudades[], int maxCorredores) {
+    FILE *f = fopen(filename, "rb");
+    if (!f) {
+        cout << "Error al abrir archivo ciudades." << endl;
+        return 0;
+    }
+
+    int cant = 0;
+    while (cant < maxCorredores && fread(&ciudades[cant], sizeof(CorredoresCiudad), 1, f) == 1) {
+        cant++;
+    }
+
+    fclose(f);
+    return cant;
+}
+
+int generarReporteCiudades(Resultado resultados[], int n, CorredoresCiudad ciudades[], int m, EstadisticaCiudades estadisticas[]) {
+    int cantEst = 0;
+
+    // acumuladores ciudad/localidad/datos
+    for(int i = 0; i < n; i++){
+        int numeroCorredor = resultados[i].corredor.numero;
+
+        for(int j = 0; j < m; j++){
+
+            if(ciudades[j].numero == numeroCorredor) {
+                // chequeo si ya tengo la ciudad/localidad
+                for(int k = 0; k < cantEst; k++){
+                    if(strcmp(estadisticas[k].ciudad, ciudades[j].ciudad) == 0 && strcmp(estadisticas[k].localidad, ciudades[j].localidad == 0)) {
+                        break;
+                    }
+                }
+
+                // si no esta la agrego
+                if (k == cantEst) {
+                    strcpy(estadisticas[k].ciudad, ciudades[j].ciudad);
+                    strcpy(estadisticas[k].localidad, ciudades[j].localidad);
+                    estadisticas[k].cantidadCorredores = 0;
+                    estadisticas[k].sumaTiempos = 0;
+                    cantEst++;
+                }
+
+                // acumulo datos
+                estadisticas[k].cantidadCorredores++;
+                estadisticas[k].sumaTiempos += resultados[i].tiempo;
+                break;
             }
         }
     }
+    return cantEst;
 }
-
 
 void generarRanking(RegCorredores corredores[], int n, Resultado ranking[], int &m) {
     // Copiar solo terminados
@@ -120,40 +219,6 @@ void generarRanking(RegCorredores corredores[], int n, Resultado ranking[], int 
     }
 }
 
-
-void Calculardiferenciasdetiempo (Resultado resultados[], int n)
-{
-	int tiempoprimero = convertirTiempoADecimas(resultados[0].corredor.llegada);
-	for (int i = 0; i < n; i++) 
-	{
-		int tiempoactual = convertirTiempoADecimas(resultados[i].corredor.llegada);
-
-        //Dif con el primero 
-        resultados[i].diffPrimero = tiempoactual - tiempoprimero;
-
-        //Dif con el anterior
-        if (i == 0 ){
-            resultados[i].diffAnterior = 0;
-        } else {
-            int tiempoanterior = convertirTiempoADecimas(resultados[i-1].corredor.llegada);
-            resultados[i].diffAnterior = tiempoactual - tiempoanterior;
-        }
-	}
-}
-
-string formatearTiempo(int tiempo) {
-    int totalSegs = tiempo / 10; // paso a segundos enteros
-    int d = tiempo % 10; // resto (la decima)
-    int hh = totalSegs / 3600; // horas
-    int mm = (totalSegs % 3600) / 60; // minutos
-    int ss = totalSegs % 60; // segundos
-
-    char buffer[20];
-    sprintf(buffer, "%02d:%02d:%02d.%d", hh, mm, ss, d);
-
-    return string(buffer);
-} 
-
 void guardarRanking(const char *filename, Resultado resultados[], int n) {
     FILE *f = fopen(filename, "wb");
     if (!f) {
@@ -187,7 +252,6 @@ void generarPodios(const char *filename, Resultado resultados[], int n) {
     }
     fclose(f);
 }
-
 
 void mostrarResultados(Resultado resultados[], int n) {
     cout << "\n=== Resultados ===\n";
@@ -287,11 +351,68 @@ void mostrarArchivoPodios(const char *filename) {
     cout << "\n=== Fin de podios ===\n";
 }
 
+void mostrarReporteCiudades(EstadisticaCiudades estadisticas[], int cantEst) {
+    cout << "\n=== Reporte por Ciudad y Localidad ===\n\n";
+    
+    cout << left
+         << setw(15) << "Ciudad"
+         << setw(15) << "Localidad"
+         << setw(20) << "Cantidad corredores"
+         << setw(15) << "Tiempo promedio" << endl;
+
+    cout << string(65, '-') << endl;
+
+
+    for(int i=0; i < cantEst; i++){
+        bool primeraVez = true;
+        for(int j = 0; j < i; j++){
+            if(strcmp(estadisticas[i].ciudad, estadisticas[j].ciudad) == 0)) {
+                primeraVez = false;
+                break;
+            }
+        }
+        if(!primeraVez) continue;
+
+        // Acumular totales de la ciudad
+        int totalCant = 0;
+        double totalSuma = 0;
+
+        for (int k = 0; k < cantEst; k++) {
+            if (strcmp(estadisticas[i].ciudad, estadisticas[k].ciudad) == 0) {
+                double prom = estadisticas[k].sumaTiempos / estadisticas[k].cantidadCorredores;
+
+                cout << left
+                     << setw(15) << estadisticas[k].ciudad
+                     << setw(15) << estadisticas[k].localidad
+                     << setw(20) << estadisticas[k].cantidadCorredores
+                     << setw(15) << formatearTiempo((int)prom)
+                     << endl;
+
+                totalCant += estadisticas[k].cantidadCorredores;
+                totalSuma += estadisticas[k].sumaTiempos;
+            }
+        }
+
+        // Mostrar línea de totales
+        double promTotal = totalSuma / totalCant;
+        cout << left
+             << setw(15) << ("Total " + string(estadisticas[i].ciudad))
+             << setw(15) << "-"
+             << setw(20) << totalCant
+             << setw(15) << formatearTiempo((int)promTotal)
+             << endl;
+
+        cout << string(65, '-') << endl;
+    }
+}
+
 int main() {
     const int MAX = 1000;
     RegCorredores corredores[MAX];
     Resultado resultados[MAX];
-    int n, m;
+    CorredoresCiudad ciudades[MAX];
+    EstadisticaCiudades estadisticas[200];
+    int n, m, c, cantEst;
 
     n = cargarCorredores("Archivo corredores 4Refugios.bin", corredores, MAX);
     if (n == 0) return 1;
@@ -309,6 +430,12 @@ int main() {
     // Mostrar contenido de archivos
     mostrarArchivoRanking("Ranking.bin");
     mostrarArchivoPodios("Podios.bin");
+
+    c = cargarCiudades("Ciudades.bin", ciudades, MAX);
+    if(c > 0) {
+        cantEst = generarReporteCiudades(resultados, m, ciudades, c, estadisticas);
+        mostrarReporteCiudades(estadisticas, cantEst);
+    }
 	return 0;
     
 }
